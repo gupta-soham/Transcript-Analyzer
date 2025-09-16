@@ -24,7 +24,7 @@ export function LoadingProgress({ analysisState }: LoadingProgressProps) {
           icon: <FileText className="h-5 w-5" />,
           title: "Parsing Transcript",
           description: "Reading and validating your transcript file...",
-          color: "text-blue-600",
+          color: "text-slate-600",
         };
       case "analyzing":
         return {
@@ -32,35 +32,35 @@ export function LoadingProgress({ analysisState }: LoadingProgressProps) {
           title: "Analyzing Content",
           description:
             "AI is processing your transcript and extracting insights...",
-          color: "text-purple-600",
+          color: "text-slate-700",
         };
       case "formatting":
         return {
           icon: <Sparkles className="h-5 w-5" />,
           title: "Formatting Results",
           description: "Organizing analysis results for display...",
-          color: "text-green-600",
+          color: "text-slate-600",
         };
       case "complete":
         return {
           icon: <Sparkles className="h-5 w-5" />,
           title: "Analysis Complete",
           description: "Your transcript has been successfully analyzed!",
-          color: "text-green-600",
+          color: "text-slate-600",
         };
       case "error":
         return {
           icon: <FileText className="h-5 w-5" />,
           title: "Analysis Error",
           description: "An error occurred during analysis.",
-          color: "text-red-600",
+          color: "text-slate-600",
         };
       default:
         return {
           icon: <Loader2 className="h-5 w-5" />,
           title: "Processing",
           description: "Please wait...",
-          color: "text-gray-600",
+          color: "text-slate-500",
         };
     }
   };
@@ -72,11 +72,11 @@ export function LoadingProgress({ analysisState }: LoadingProgressProps) {
   }
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
+    <Card className="w-full max-w-2xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <div
-            className={`${stageInfo.color} ${analysisState.isAnalyzing ? "animate-ping" : ""}`}
+            className={`${stageInfo.color} ${analysisState.isAnalyzing ? "animate-pulse" : ""}`}
           >
             {stageInfo.icon}
           </div>
@@ -101,18 +101,21 @@ export function LoadingProgress({ analysisState }: LoadingProgressProps) {
             currentStage={analysisState.stage}
             isAnalyzing={analysisState.isAnalyzing}
             label="Parse Transcript"
+            delay={0}
           />
           <StageIndicator
             stage="analyzing"
             currentStage={analysisState.stage}
             isAnalyzing={analysisState.isAnalyzing}
             label="AI Analysis"
+            delay={100}
           />
           <StageIndicator
             stage="formatting"
             currentStage={analysisState.stage}
             isAnalyzing={analysisState.isAnalyzing}
             label="Format Results"
+            delay={200}
           />
         </div>
 
@@ -125,18 +128,33 @@ export function LoadingProgress({ analysisState }: LoadingProgressProps) {
 
         {/* Loading Skeleton Preview */}
         {analysisState.isAnalyzing && (
-          <div className="space-y-4 pt-4 border-t">
+          <div className="space-y-4 pt-4 border-t animate-in slide-in-from-bottom-2 duration-500 delay-300">
             <p className="text-sm text-muted-foreground">
               Preview of results structure:
             </p>
             <div className="space-y-3">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-4 w-3/4 animate-pulse" />
+              <Skeleton
+                className="h-4 w-1/2 animate-pulse"
+                style={{ animationDelay: "0.1s" }}
+              />
+              <Skeleton
+                className="h-20 w-full animate-pulse"
+                style={{ animationDelay: "0.2s" }}
+              />
               <div className="flex gap-2">
-                <Skeleton className="h-6 w-16" />
-                <Skeleton className="h-6 w-20" />
-                <Skeleton className="h-6 w-14" />
+                <Skeleton
+                  className="h-6 w-16 animate-pulse"
+                  style={{ animationDelay: "0.3s" }}
+                />
+                <Skeleton
+                  className="h-6 w-20 animate-pulse"
+                  style={{ animationDelay: "0.4s" }}
+                />
+                <Skeleton
+                  className="h-6 w-14 animate-pulse"
+                  style={{ animationDelay: "0.5s" }}
+                />
               </div>
             </div>
           </div>
@@ -151,6 +169,7 @@ interface StageIndicatorProps {
   currentStage: AnalysisState["stage"];
   isAnalyzing: boolean;
   label: string;
+  delay?: number;
 }
 
 function StageIndicator({
@@ -158,6 +177,7 @@ function StageIndicator({
   currentStage,
   isAnalyzing,
   label,
+  delay = 0,
 }: StageIndicatorProps) {
   const getStageStatus = () => {
     const stageOrder = ["parsing", "analyzing", "formatting", "complete"];
@@ -213,7 +233,10 @@ function StageIndicator({
   const styles = getStatusStyles();
 
   return (
-    <div className="flex items-center gap-3">
+    <div
+      className={`flex items-center gap-3 animate-in slide-in-from-left-2 duration-300`}
+      style={{ animationDelay: `${delay}ms` }}
+    >
       <div
         className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium ${styles.dot}`}
       >
@@ -250,19 +273,25 @@ export function LoadingSpinner({
  */
 export function AnalysisLoadingSkeleton() {
   return (
-    <Card className="w-full max-w-4xl mx-auto">
+    <Card className="w-full max-w-4xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Skeleton className="h-5 w-5" />
-          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-5 w-5 animate-pulse" />
+          <Skeleton className="h-6 w-48 animate-pulse" />
         </div>
-        <Skeleton className="h-4 w-64" />
+        <Skeleton className="h-4 w-64 animate-pulse" />
 
         {/* Metadata skeleton */}
         <div className="flex flex-wrap gap-4 pt-2">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-24 animate-pulse" />
+          <Skeleton
+            className="h-4 w-20 animate-pulse"
+            style={{ animationDelay: "0.1s" }}
+          />
+          <Skeleton
+            className="h-4 w-32 animate-pulse"
+            style={{ animationDelay: "0.2s" }}
+          />
         </div>
       </CardHeader>
 
@@ -270,35 +299,53 @@ export function AnalysisLoadingSkeleton() {
         {/* Tabs skeleton */}
         <div className="space-y-4">
           <div className="flex space-x-1 bg-muted p-1 rounded-lg">
-            <Skeleton className="h-8 w-20" />
-            <Skeleton className="h-8 w-24" />
-            <Skeleton className="h-8 w-20" />
-            <Skeleton className="h-8 w-22" />
+            <Skeleton className="h-8 w-20 animate-pulse" />
+            <Skeleton
+              className="h-8 w-24 animate-pulse"
+              style={{ animationDelay: "0.1s" }}
+            />
+            <Skeleton
+              className="h-8 w-20 animate-pulse"
+              style={{ animationDelay: "0.2s" }}
+            />
+            <Skeleton
+              className="h-8 w-22 animate-pulse"
+              style={{ animationDelay: "0.3s" }}
+            />
           </div>
 
           {/* Content skeleton */}
           <div className="space-y-4">
-            <Card>
+            <Card className="animate-in slide-in-from-left-2 duration-300 delay-200">
               <CardHeader>
-                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-5 w-32 animate-pulse" />
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-full animate-pulse" />
+                  <Skeleton
+                    className="h-4 w-3/4 animate-pulse"
+                    style={{ animationDelay: "0.1s" }}
+                  />
+                  <Skeleton
+                    className="h-4 w-5/6 animate-pulse"
+                    style={{ animationDelay: "0.2s" }}
+                  />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="animate-in slide-in-from-left-2 duration-300 delay-400">
               <CardHeader>
-                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-5 w-40 animate-pulse" />
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full animate-pulse" />
+                  <Skeleton
+                    className="h-16 w-full animate-pulse"
+                    style={{ animationDelay: "0.1s" }}
+                  />
                 </div>
               </CardContent>
             </Card>

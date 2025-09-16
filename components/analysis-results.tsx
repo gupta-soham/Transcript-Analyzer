@@ -32,6 +32,7 @@ import {
   Calendar,
   Edit,
   Tag,
+  BarChart3,
 } from "lucide-react";
 import {
   AnalysisResult,
@@ -40,7 +41,14 @@ import {
   NamedEntity,
 } from "@/lib/types";
 import { EntityEditor } from "./entity-editor";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { CopyButton } from "./copy-button";
 
 interface AnalysisResultsProps {
   result: AnalysisResult | null;
@@ -61,15 +69,6 @@ export const AnalysisResults = memo(function AnalysisResults({
       [sectionId]: !prev[sectionId],
     }));
   };
-
-  const copyToClipboard = useCallback(async (text: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(`${label} copied to clipboard`);
-    } catch {
-      toast.error("Failed to copy to clipboard");
-    }
-  }, []);
 
   const handleEntityUpdate = useCallback(
     (updatedEntity: NamedEntity) => {
@@ -98,85 +97,100 @@ export const AnalysisResults = memo(function AnalysisResults({
   }
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="h-5 w-5" />
-          Analysis Results
-        </CardTitle>
-        <CardDescription>
-          Comprehensive analysis of your transcript content
-        </CardDescription>
+    <TooltipProvider>
+      <Card className="w-full max-w-4xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
+        <CardHeader className="pb-4 sm:pb-6">
+          <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
+            <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
+            Analysis Results
+          </CardTitle>
+          <CardDescription className="text-sm sm:text-base">
+            Comprehensive analysis of your transcript content
+          </CardDescription>
 
-        {/* Metadata */}
-        <div className="flex flex-wrap gap-4 pt-2">
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Clock className="h-4 w-4" />
-            Duration: {result.metadata.totalDuration}
+          {/* Metadata */}
+          <div className="flex flex-wrap gap-3 sm:gap-4 pt-3 sm:pt-4">
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              Duration: {result.metadata.totalDuration}
+            </div>
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Hash className="h-4 w-4" />
+              Words: {result.metadata.wordCount.toLocaleString()}
+            </div>
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              Processed:{" "}
+              {new Date(result.metadata.processedAt).toLocaleString()}
+            </div>
           </div>
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Hash className="h-4 w-4" />
-            Words: {result.metadata.wordCount.toLocaleString()}
-          </div>
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Calendar className="h-4 w-4" />
-            Processed: {new Date(result.metadata.processedAt).toLocaleString()}
-          </div>
-        </div>
-      </CardHeader>
+        </CardHeader>
 
-      <CardContent>
-        <Tabs defaultValue="summary" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="summary">Summary</TabsTrigger>
-            <TabsTrigger value="highlights">
-              Highlights ({result.highlights.length})
-            </TabsTrigger>
-            <TabsTrigger value="lowlights">
-              Lowlights ({result.lowlights.length})
-            </TabsTrigger>
-            <TabsTrigger value="entities">
-              Entities ({result.namedEntities.length})
-            </TabsTrigger>
-          </TabsList>
+        <CardContent>
+          <Tabs defaultValue="summary" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto p-1 gap-1 sm:gap-0">
+              <TabsTrigger
+                value="summary"
+                className="text-xs sm:text-sm py-2 px-2 sm:px-4"
+              >
+                <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Summary
+              </TabsTrigger>
+              <TabsTrigger
+                value="highlights"
+                className="text-xs sm:text-sm py-2 px-2 sm:px-4"
+              >
+                <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Highlights ({result.highlights.length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="lowlights"
+                className="text-xs sm:text-sm py-2 px-2 sm:px-4"
+              >
+                <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Lowlights ({result.lowlights.length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="entities"
+                className="text-xs sm:text-sm py-2 px-2 sm:px-4"
+              >
+                <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Entities ({result.namedEntities.length})
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="summary" className="mt-6">
-            <SummarySection
-              summary={result.summary}
-              onCopy={(text) => copyToClipboard(text, "Summary")}
-            />
-          </TabsContent>
+            <TabsContent value="summary" className="mt-6">
+              <SummarySection summary={result.summary} />
+            </TabsContent>
 
-          <TabsContent value="highlights" className="mt-6">
-            <HighlightsSection
-              highlights={result.highlights}
-              openSections={openSections}
-              onToggleSection={toggleSection}
-              onCopy={copyToClipboard}
-            />
-          </TabsContent>
+            <TabsContent value="highlights" className="mt-6">
+              <HighlightsSection
+                highlights={result.highlights}
+                openSections={openSections}
+                onToggleSection={toggleSection}
+              />
+            </TabsContent>
 
-          <TabsContent value="lowlights" className="mt-6">
-            <LowlightsSection
-              lowlights={result.lowlights}
-              openSections={openSections}
-              onToggleSection={toggleSection}
-              onCopy={copyToClipboard}
-            />
-          </TabsContent>
+            <TabsContent value="lowlights" className="mt-6">
+              <LowlightsSection
+                lowlights={result.lowlights}
+                openSections={openSections}
+                onToggleSection={toggleSection}
+              />
+            </TabsContent>
 
-          <TabsContent value="entities" className="mt-6">
-            <EntitiesSection
-              entities={result.namedEntities}
-              openSections={openSections}
-              onToggleSection={toggleSection}
-              onCopy={copyToClipboard}
-              onEntityUpdate={handleEntityUpdate}
-            />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+            <TabsContent value="entities" className="mt-6">
+              <EntitiesSection
+                entities={result.namedEntities}
+                openSections={openSections}
+                onToggleSection={toggleSection}
+                onEntityUpdate={handleEntityUpdate}
+              />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </TooltipProvider>
   );
 });
 
@@ -203,22 +217,13 @@ function LoadingSkeleton() {
   );
 }
 
-function SummarySection({
-  summary,
-  onCopy,
-}: {
-  summary: string;
-  onCopy: (text: string) => void;
-}) {
+function SummarySection({ summary }: { summary: string }) {
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Executive Summary</CardTitle>
-          <Button variant="outline" size="sm" onClick={() => onCopy(summary)}>
-            <Copy className="h-4 w-4 mr-2" />
-            Copy
-          </Button>
+          <CopyButton text={summary} label="Summary" />
         </div>
       </CardHeader>
       <CardContent>
@@ -236,12 +241,10 @@ function HighlightsSection({
   highlights,
   openSections,
   onToggleSection,
-  onCopy,
 }: {
   highlights: HighlightItem[];
   openSections: Record<string, boolean>;
   onToggleSection: (id: string) => void;
-  onCopy: (text: string, label: string) => void;
 }) {
   if (highlights.length === 0) {
     return (
@@ -261,21 +264,24 @@ function HighlightsSection({
         const isOpen = openSections[sectionId];
 
         return (
-          <Card key={index}>
+          <Card
+            key={index}
+            className="group transition-all duration-200 hover:shadow-md"
+          >
             <Collapsible
               open={isOpen}
               onOpenChange={() => onToggleSection(sectionId)}
             >
               <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <CardHeader className="cursor-pointer transition-all duration-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {isOpen ? (
-                        <ChevronDown className="h-4 w-4" />
+                        <ChevronDown className="h-4 w-4 transition-transform duration-200" />
                       ) : (
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-4 w-4 transition-transform duration-200" />
                       )}
-                      <TrendingUp className="h-4 w-4 text-green-600" />
+                      <TrendingUp className="h-4 w-4 text-slate-600" />
                       <div className="flex items-center gap-2">
                         {highlight.timestamp && (
                           <Badge variant="secondary" className="text-xs">
@@ -289,16 +295,11 @@ function HighlightsSection({
                         )}
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onCopy(highlight.content, "Highlight");
-                      }}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
+                    <CopyButton
+                      text={highlight.content}
+                      label="Highlight"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    />
                   </div>
                 </CardHeader>
               </CollapsibleTrigger>
@@ -320,12 +321,10 @@ function LowlightsSection({
   lowlights,
   openSections,
   onToggleSection,
-  onCopy,
 }: {
   lowlights: LowlightItem[];
   openSections: Record<string, boolean>;
   onToggleSection: (id: string) => void;
-  onCopy: (text: string, label: string) => void;
 }) {
   if (lowlights.length === 0) {
     return (
@@ -351,7 +350,7 @@ function LowlightsSection({
               onOpenChange={() => onToggleSection(sectionId)}
             >
               <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <CardHeader className="cursor-pointer transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {isOpen ? (
@@ -359,7 +358,7 @@ function LowlightsSection({
                       ) : (
                         <ChevronRight className="h-4 w-4" />
                       )}
-                      <TrendingDown className="h-4 w-4 text-red-600" />
+                      <TrendingDown className="h-4 w-4 text-slate-600" />
                       <div className="flex items-center gap-2">
                         {lowlight.timestamp && (
                           <Badge variant="secondary" className="text-xs">
@@ -371,16 +370,7 @@ function LowlightsSection({
                         </Badge>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onCopy(lowlight.content, "Lowlight");
-                      }}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
+                    <CopyButton text={lowlight.content} label="Lowlight" />
                   </div>
                 </CardHeader>
               </CollapsibleTrigger>
@@ -402,13 +392,11 @@ function EntitiesSection({
   entities,
   openSections,
   onToggleSection,
-  onCopy,
   onEntityUpdate,
 }: {
   entities: NamedEntity[];
   openSections: Record<string, boolean>;
   onToggleSection: (id: string) => void;
-  onCopy: (text: string, label: string) => void;
   onEntityUpdate?: (entity: NamedEntity) => void;
 }) {
   if (entities.length === 0) {
@@ -457,7 +445,7 @@ function EntitiesSection({
               onOpenChange={() => onToggleSection(sectionId)}
             >
               <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <CardHeader className="cursor-pointer transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {isOpen ? (
@@ -518,17 +506,10 @@ function EntitiesSection({
                           }
                         />
                       )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const entityText = `${entity.name} (${entity.type})\n${entity.mentions.map((m) => `- ${m.content}`).join("\n")}`;
-                          onCopy(entityText, "Entity");
-                        }}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
+                      <CopyButton
+                        text={`${entity.name} (${entity.type})\n${entity.mentions.map((m) => `- ${m.content}`).join("\n")}`}
+                        label="Entity"
+                      />
                     </div>
                   </div>
                 </CardHeader>
