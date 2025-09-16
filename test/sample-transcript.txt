@@ -1,0 +1,8 @@
+- 00:00:00 introduction Welcome to today's team meeting. I'm excited to discuss our project progress.
+- 00:01:30 agenda Today we'll cover three main topics: development updates, testing results, and next steps.
+- 00:03:15 development_update Our development team has made significant progress on the new features.
+- 00:05:45 testing_results The QA team has completed testing on the core functionality with positive results.
+- 00:08:20 challenges We did encounter some performance issues that need to be addressed.
+- 00:10:30 solutions The team has proposed several solutions to improve performance.
+- 00:12:45 next_steps Moving forward, we'll implement the performance improvements and conduct additional testing.
+- 00:15:00 conclusion Thank you everyone for your hard work. Let's schedule a follow-up meeting for next week.
