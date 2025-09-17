@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, memo } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,47 +9,34 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  FileText,
-  TrendingUp,
-  TrendingDown,
-  Users,
-  Copy,
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Hash,
-  Calendar,
-  Edit,
-  Tag,
-  BarChart3,
-} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   AnalysisResult,
   HighlightItem,
   LowlightItem,
   NamedEntity,
 } from "@/lib/types";
-import { EntityEditor } from "./entity-editor";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { toast } from "sonner";
+  BarChart3,
+  Calendar,
+  ChevronRight,
+  Clock,
+  Edit,
+  FileText,
+  Hash,
+  Tag,
+  TrendingDown,
+  TrendingUp,
+  Users,
+} from "lucide-react";
+import { memo, useCallback, useState } from "react";
 import { CopyButton } from "./copy-button";
+import { EntityEditor } from "./entity-editor";
+import { motion, AnimatePresence } from "motion/react";
 
 interface AnalysisResultsProps {
   result: AnalysisResult | null;
@@ -268,48 +256,63 @@ function HighlightsSection({
             key={index}
             className="group transition-all duration-200 hover:shadow-md"
           >
-            <Collapsible
-              open={isOpen}
-              onOpenChange={() => onToggleSection(sectionId)}
+            <motion.div
+              layout
+              className="cursor-pointer transition-all duration-200"
+              onClick={() => onToggleSection(sectionId)}
             >
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer transition-all duration-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {isOpen ? (
-                        <ChevronDown className="h-4 w-4 transition-transform duration-200" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 transition-transform duration-200" />
+              <CardHeader className="pb-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <motion.div
+                      animate={{ rotate: isOpen ? 90 : 0 }}
+                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </motion.div>
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                    <div className="flex items-center gap-2">
+                      {highlight.timestamp && (
+                        <Badge variant="secondary" className="text-xs">
+                          {highlight.timestamp}
+                        </Badge>
                       )}
-                      <TrendingUp className="h-4 w-4 text-slate-600" />
-                      <div className="flex items-center gap-2">
-                        {highlight.timestamp && (
-                          <Badge variant="secondary" className="text-xs">
-                            {highlight.timestamp}
-                          </Badge>
-                        )}
-                        {highlight.relevanceScore && (
-                          <Badge variant="outline" className="text-xs">
-                            Score: {highlight.relevanceScore}/10
-                          </Badge>
-                        )}
-                      </div>
+                      {highlight.relevanceScore && (
+                        <Badge variant="outline" className="text-xs">
+                          Score: {highlight.relevanceScore}/10
+                        </Badge>
+                      )}
                     </div>
-                    <CopyButton
-                      text={highlight.content}
-                      label="Highlight"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                    />
                   </div>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent className="pt-0">
-                  <Separator className="mb-4" />
-                  <p className="text-sm leading-relaxed">{highlight.content}</p>
-                </CardContent>
-              </CollapsibleContent>
-            </Collapsible>
+                  <CopyButton
+                    text={highlight.content}
+                    label="Highlight"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  />
+                </div>
+              </CardHeader>
+            </motion.div>
+
+            <AnimatePresence>
+              {isOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{
+                    duration: 0.3,
+                    ease: [0.4, 0.0, 0.2, 1],
+                    opacity: { duration: 0.2 }
+                  }}
+                  className="overflow-hidden"
+                >
+                  <CardContent className="pt-0">
+                    <Separator className="mb-4" />
+                    <p className="text-sm leading-relaxed">{highlight.content}</p>
+                  </CardContent>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Card>
         );
       })}
@@ -345,42 +348,57 @@ function LowlightsSection({
 
         return (
           <Card key={index}>
-            <Collapsible
-              open={isOpen}
-              onOpenChange={() => onToggleSection(sectionId)}
+            <motion.div
+              layout
+              className="cursor-pointer transition-colors"
+              onClick={() => onToggleSection(sectionId)}
             >
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {isOpen ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                      <TrendingDown className="h-4 w-4 text-slate-600" />
-                      <div className="flex items-center gap-2">
-                        {lowlight.timestamp && (
-                          <Badge variant="secondary" className="text-xs">
-                            {lowlight.timestamp}
-                          </Badge>
-                        )}
-                        <Badge variant="destructive" className="text-xs">
-                          {lowlight.issueType}
+              <CardHeader className="pb-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <motion.div
+                      animate={{ rotate: isOpen ? 90 : 0 }}
+                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </motion.div>
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                    <div className="flex items-center gap-2">
+                      {lowlight.timestamp && (
+                        <Badge variant="secondary" className="text-xs">
+                          {lowlight.timestamp}
                         </Badge>
-                      </div>
+                      )}
+                      <Badge variant="destructive" className="text-xs">
+                        {lowlight.issueType}
+                      </Badge>
                     </div>
-                    <CopyButton text={lowlight.content} label="Lowlight" />
                   </div>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent className="pt-0">
-                  <Separator className="mb-4" />
-                  <p className="text-sm leading-relaxed">{lowlight.content}</p>
-                </CardContent>
-              </CollapsibleContent>
-            </Collapsible>
+                  <CopyButton text={lowlight.content} label="Lowlight" />
+                </div>
+              </CardHeader>
+            </motion.div>
+
+            <AnimatePresence>
+              {isOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{
+                    duration: 0.3,
+                    ease: [0.4, 0.0, 0.2, 1],
+                    opacity: { duration: 0.2 }
+                  }}
+                  className="overflow-hidden"
+                >
+                  <CardContent className="pt-0">
+                    <Separator className="mb-4" />
+                    <p className="text-sm leading-relaxed">{lowlight.content}</p>
+                  </CardContent>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Card>
         );
       })}
@@ -440,117 +458,132 @@ function EntitiesSection({
 
         return (
           <Card key={index}>
-            <Collapsible
-              open={isOpen}
-              onOpenChange={() => onToggleSection(sectionId)}
+            <motion.div
+              layout
+              className="cursor-pointer transition-colors"
+              onClick={() => onToggleSection(sectionId)}
             >
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {isOpen ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                      {getEntityIcon(entity.type)}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium">{entity.name}</span>
+              <CardHeader className="pb-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <motion.div
+                      animate={{ rotate: isOpen ? 90 : 0 }}
+                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </motion.div>
+                    {getEntityIcon(entity.type)}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium">{entity.name}</span>
+                      <Badge
+                        className={`text-xs ${getEntityColor(entity.type)}`}
+                      >
+                        {entity.type}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {entity.mentions.length} mentions
+                      </Badge>
+                      {entity.tone && (
                         <Badge
-                          className={`text-xs ${getEntityColor(entity.type)}`}
-                        >
-                          {entity.type}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {entity.mentions.length} mentions
-                        </Badge>
-                        {entity.tone && (
-                          <Badge
-                            variant={
-                              entity.tone === "positive"
-                                ? "default"
-                                : entity.tone === "negative"
-                                  ? "destructive"
-                                  : "secondary"
-                            }
-                            className="text-xs"
-                          >
-                            {entity.tone}
-                          </Badge>
-                        )}
-                        {entity.tags?.map((tag, tagIndex) => (
-                          <Badge
-                            key={tagIndex}
-                            variant="outline"
-                            className="text-xs"
-                          >
-                            <Tag className="h-3 w-3 mr-1" />
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {onEntityUpdate && (
-                        <EntityEditor
-                          entity={entity}
-                          onUpdate={onEntityUpdate}
-                          trigger={
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                          variant={
+                            entity.tone === "positive"
+                              ? "default"
+                              : entity.tone === "negative"
+                                ? "destructive"
+                                : "secondary"
                           }
-                        />
+                          className="text-xs"
+                        >
+                          {entity.tone}
+                        </Badge>
                       )}
-                      <CopyButton
-                        text={`${entity.name} (${entity.type})\n${entity.mentions.map((m) => `- ${m.content}`).join("\n")}`}
-                        label="Entity"
-                      />
+                      {entity.tags?.map((tag, tagIndex) => (
+                        <Badge
+                          key={tagIndex}
+                          variant="outline"
+                          className="text-xs"
+                        >
+                          <Tag className="h-3 w-3 mr-1" />
+                          {tag}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent className="pt-0">
-                  <Separator className="mb-4" />
+                  <div className="flex items-center gap-1">
+                    {onEntityUpdate && (
+                      <EntityEditor
+                        entity={entity}
+                        onUpdate={onEntityUpdate}
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        }
+                      />
+                    )}
+                    <CopyButton
+                      text={`${entity.name} (${entity.type})\n${entity.mentions.map((m) => `- ${m.content}`).join("\n")}`}
+                      label="Entity"
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+            </motion.div>
 
-                  {entity.notes && (
-                    <div className="mb-4 p-3 bg-muted/50 rounded-lg">
-                      <h4 className="text-sm font-medium mb-2">Notes</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {entity.notes}
-                      </p>
-                    </div>
-                  )}
+            <AnimatePresence>
+              {isOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{
+                    duration: 0.3,
+                    ease: [0.4, 0.0, 0.2, 1],
+                    opacity: { duration: 0.2 }
+                  }}
+                  className="overflow-hidden"
+                >
+                  <CardContent className="pt-0">
+                    <Separator className="mb-4" />
 
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-medium">Mentions</h4>
-                    {entity.mentions.map((mention, mentionIndex) => (
-                      <div
-                        key={mentionIndex}
-                        className="border-l-2 border-muted pl-4"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          {mention.timestamp && (
-                            <Badge variant="secondary" className="text-xs">
-                              {mention.timestamp}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm mb-2">{mention.content}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {mention.context}
+                    {entity.notes && (
+                      <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+                        <h4 className="text-sm font-medium mb-2">Notes</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {entity.notes}
                         </p>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </CollapsibleContent>
-            </Collapsible>
+                    )}
+
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium">Mentions</h4>
+                      {entity.mentions.map((mention, mentionIndex) => (
+                        <div
+                          key={mentionIndex}
+                          className="border-l-2 border-muted pl-4"
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            {mention.timestamp && (
+                              <Badge variant="secondary" className="text-xs">
+                                {mention.timestamp}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm mb-2">{mention.content}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {mention.context}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Card>
         );
       })}

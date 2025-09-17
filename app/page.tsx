@@ -10,6 +10,7 @@ import {
   AnalysisState,
   AnalysisResult,
   ApiResult,
+  FILE_CONSTRAINTS,
 } from "@/lib/types";
 import { createSampleTranscriptFile } from "@/lib/sample-data";
 import { ModeToggle } from "@/components/mode-toggle";
@@ -20,6 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import Logo from "@/components/logo";
 
 export default function Home() {
   const [uploadState, setUploadState] = useState<FileUploadState>({
@@ -27,6 +29,7 @@ export default function Home() {
     isUploading: false,
     progress: 0,
     error: null,
+    fileType: null,
   });
 
   const [analysisState, setAnalysisState] = useState<AnalysisState>({
@@ -42,22 +45,42 @@ export default function Home() {
       // Set initial analysis state
       setAnalysisState({
         isAnalyzing: true,
-        progress: 10,
+        progress: 0,
         stage: "parsing",
         result: null,
         error: null,
       });
+
+      // Smooth progress to parsing start
+      setTimeout(() => {
+        setAnalysisState((prev) => ({ ...prev, progress: 5 }));
+      }, 100);
+
+      setTimeout(() => {
+        setAnalysisState((prev) => ({ ...prev, progress: 15 }));
+      }, 300);
 
       // Create form data
       const formData = new FormData();
       formData.append("file", file);
 
       // Update progress - analyzing stage
-      setAnalysisState((prev) => ({
-        ...prev,
-        progress: 30,
-        stage: "analyzing",
-      }));
+      setTimeout(() => {
+        setAnalysisState((prev) => ({
+          ...prev,
+          progress: 25,
+          stage: "analyzing",
+        }));
+      }, 500);
+
+      // Continue smooth progress during analysis
+      setTimeout(() => {
+        setAnalysisState((prev) => ({ ...prev, progress: 35 }));
+      }, 800);
+
+      setTimeout(() => {
+        setAnalysisState((prev) => ({ ...prev, progress: 45 }));
+      }, 1200);
 
       // Make API request
       const response = await fetch("/api/analyze-transcript", {
@@ -66,11 +89,22 @@ export default function Home() {
       });
 
       // Update progress - formatting stage
-      setAnalysisState((prev) => ({
-        ...prev,
-        progress: 80,
-        stage: "formatting",
-      }));
+      setTimeout(() => {
+        setAnalysisState((prev) => ({
+          ...prev,
+          progress: 65,
+          stage: "formatting",
+        }));
+      }, 100);
+
+      // Continue smooth progress during formatting
+      setTimeout(() => {
+        setAnalysisState((prev) => ({ ...prev, progress: 75 }));
+      }, 300);
+
+      setTimeout(() => {
+        setAnalysisState((prev) => ({ ...prev, progress: 85 }));
+      }, 500);
 
       const result: ApiResult<AnalysisResult> = await response.json();
 
@@ -78,7 +112,15 @@ export default function Home() {
         throw new Error(result.error.message);
       }
 
-      // Complete analysis
+      // Progress to near completion
+      setTimeout(() => {
+        setAnalysisState((prev) => ({ ...prev, progress: 95 }));
+      }, 200);
+
+      // Wait 2 seconds to show completion visual cue
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Complete analysis with final progress
       setAnalysisState({
         isAnalyzing: false,
         progress: 100,
@@ -131,6 +173,11 @@ export default function Home() {
         isUploading: false,
         progress: 0,
         error: null,
+        fileType: FILE_CONSTRAINTS.TEXT_EXTENSIONS.some((ext) =>
+          file.name.toLowerCase().endsWith(ext)
+        )
+          ? "text"
+          : "audio",
       });
 
       setAnalysisState({
@@ -171,6 +218,7 @@ export default function Home() {
       isUploading: false,
       progress: 0,
       error: null,
+      fileType: null,
     });
   }, []);
 
@@ -178,30 +226,11 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4 sm:py-6">
+        <div className="container mx-auto px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg">
-                <span className="text-primary-foreground font-bold text-sm sm:text-base">
-                  TA
-                </span>
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-                  Transcript Analyzer
-                </h1>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  AI-powered insights from your transcripts
-                </p>
-              </div>
-            </div>
+            <Logo size="lg" showText={true} />
 
             <div className="flex items-center gap-2 sm:gap-4">
-              <div className="sm:hidden">
-                <h1 className="text-lg font-bold tracking-tight">
-                  Transcript Analyzer
-                </h1>
-              </div>
               <ModeToggle />
             </div>
           </div>
@@ -314,8 +343,8 @@ export default function Home() {
       <footer className="border-t mt-16">
         <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
           <p>
-            Powered by Google Gemini AI • Upload .txt files with timestamped
-            content
+            Powered by Google Gemini AI • Upload .txt or audio files (.mp3,
+            .wav, .ogg, .m4a)
           </p>
         </div>
       </footer>

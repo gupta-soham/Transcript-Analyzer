@@ -3,6 +3,7 @@ import {
     TranscriptEntry,
     AnalysisResult,
     NamedEntity,
+    TranscriptionResult,
     DEFAULT_GEMINI_CONFIG,
     ErrorCode,
 } from './types';
@@ -83,6 +84,116 @@ export class GeminiService {
             };
 
             return analysisResult;
+
+        } catch (error: unknown) {
+            // Handle specific Gemini API errors
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+            if (errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
+                throw new Error(`${ErrorCode.RATE_LIMIT_EXCEEDED}: API rate limit exceeded. Please try again later.`);
+            }
+
+            if (errorMessage.includes('API key')) {
+                throw new Error(`${ErrorCode.API_KEY_MISSING}: Invalid or missing API key.`);
+            }
+
+            if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+                throw new Error(`${ErrorCode.NETWORK_ERROR}: Network error occurred while contacting Gemini API.`);
+            }
+
+            // Re-throw with error code prefix for consistent error handling
+            throw new Error(`${ErrorCode.API_REQUEST_FAILED}: ${errorMessage}`);
+        }
+    }
+
+    /**
+     * Transcribes an audio file using Gemini API and returns timestamped text
+     * @param audioFile The audio file to transcribe
+     * @returns Promise resolving to transcription result
+     * @throws Error for API failures, rate limiting, or invalid responses
+     */
+    async transcribeAudio(audioFile: File): Promise<TranscriptionResult> {
+        if (!audioFile) {
+            throw new Error('Audio file cannot be empty');
+        }
+
+        // Validate file size (20MB limit for Gemini)
+        if (audioFile.size > 20 * 1024 * 1024) {
+            throw new Error('Audio file size exceeds 20MB limit');
+        }
+
+        // Validate file type
+        const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4'];
+        if (!allowedTypes.includes(audioFile.type)) {
+            throw new Error('Unsupported audio format. Supported: MP3, WAV, OGG, M4A');
+        }
+
+        try {
+            const model = this.genAI.getGenerativeModel({
+                model: 'gemini-2.0-flash-exp',
+                generationConfig: {
+                    temperature: 0.1,
+                    maxOutputTokens: 8192,
+                    responseMimeType: 'text/plain',
+                }
+            });
+
+            // Convert File to base64 for Gemini API
+            const arrayBuffer = await audioFile.arrayBuffer();
+            const base64Audio = Buffer.from(arrayBuffer).toString('base64');
+
+            const prompt = `Please transcribe this audio file and provide the transcript with timestamps in the following EXACT format:
+
+Format each line as: [HH:MM:SS] Speaker: Content
+
+IMPORTANT FORMATTING RULES:
+1. Use square brackets [] around timestamps
+2. Format: [HH:MM:SS] Speaker: Content
+3. Use HH:MM:SS format (e.g., [00:01:23] Interviewer: Hello)
+4. Identify speakers clearly (e.g., Interviewer, Candidate, Speaker 1, etc.)
+5. Each line should contain one complete thought or sentence
+6. Do NOT include any headers, footers, or additional text
+7. Do NOT number the lines
+8. Start directly with the first timestamped line
+
+Example output:
+[00:00:05] Interviewer: Welcome to the interview.
+[00:00:12] Candidate: Thank you for having me.
+[00:00:18] Interviewer: Can you tell me about your experience?
+
+Please return ONLY the transcript lines in the exact format shown above.`;
+
+            const result = await model.generateContent([
+                prompt,
+                {
+                    inlineData: {
+                        data: base64Audio,
+                        mimeType: audioFile.type,
+                    },
+                },
+            ]);
+
+            if (!result.response) {
+                throw new Error('No response received from Gemini API');
+            }
+
+            const transcriptText = result.response.text();
+            if (!transcriptText) {
+                throw new Error('Empty response from Gemini API');
+            }
+
+            // Calculate word count and estimate duration
+            const wordCount = this.calculateWordCountFromText(transcriptText);
+            const estimatedDuration = this.estimateDurationFromWordCount(wordCount);
+
+            const transcriptionResult: TranscriptionResult = {
+                transcript: transcriptText,
+                duration: estimatedDuration,
+                wordCount: wordCount,
+                processedAt: new Date().toISOString(),
+            };
+
+            return transcriptionResult;
 
         } catch (error: unknown) {
             // Handle specific Gemini API errors
@@ -230,6 +341,30 @@ Please return ONLY the JSON response with no additional text or formatting.
             const words = entry.content.trim().split(/\s+/).filter(word => word.length > 0);
             return total + words.length;
         }, 0);
+    }
+
+    /**
+     * Calculates word count from raw text
+     * @param text Raw text content
+     * @returns Word count
+     */
+    private calculateWordCountFromText(text: string): number {
+        return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+    }
+
+    /**
+     * Estimates duration based on word count (rough approximation: ~150 words per minute)
+     * @param wordCount Total word count
+     * @returns Estimated duration in HH:MM:SS format
+     */
+    private estimateDurationFromWordCount(wordCount: number): string {
+        const wordsPerMinute = 150;
+        const totalMinutes = wordCount / wordsPerMinute;
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = Math.floor(totalMinutes % 60);
+        const seconds = Math.floor((totalMinutes % 1) * 60);
+
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }
 
     /**

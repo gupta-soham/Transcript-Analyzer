@@ -86,15 +86,16 @@ export const TranscriptUploader = memo(function TranscriptUploader({
       }
 
       // Validate file type
-      const isValidType =
-        FILE_CONSTRAINTS.ALLOWED_TYPES.includes(file.type as "text/plain") ||
-        FILE_CONSTRAINTS.ALLOWED_EXTENSIONS.some((ext) =>
-          file.name.toLowerCase().endsWith(ext)
-        );
+      const isTextFile = FILE_CONSTRAINTS.TEXT_EXTENSIONS.some((ext) =>
+        file.name.toLowerCase().endsWith(ext)
+      );
+      const isAudioFile = FILE_CONSTRAINTS.AUDIO_EXTENSIONS.some((ext) =>
+        file.name.toLowerCase().endsWith(ext)
+      );
 
-      if (!isValidType) {
+      if (!isTextFile && !isAudioFile) {
         toast.error("Unsupported file type!", {
-          description: "Please upload a .txt file only",
+          description: "Please upload a text file or audio file)",
         });
         return;
       }
@@ -132,8 +133,8 @@ export const TranscriptUploader = memo(function TranscriptUploader({
           Upload Transcript
         </CardTitle>
         <CardDescription className="text-muted-foreground/80">
-          Upload a .txt file with timestamped transcript content or try our
-          sample below
+          Upload a .txt file with timestamped transcript content or an audio
+          file (.mp3, .wav, .ogg, .m4a) to transcribe and analyze
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -197,7 +198,7 @@ export const TranscriptUploader = memo(function TranscriptUploader({
               >
                 {dragActive
                   ? "🎯 Drop your file here"
-                  : "📁 Drag & drop your transcript file"}
+                  : "📁 Drag & drop your transcript or audio file"}
               </p>
               <p className="text-sm text-muted-foreground/80">
                 or click to browse files
@@ -225,7 +226,7 @@ export const TranscriptUploader = memo(function TranscriptUploader({
           <Input
             ref={fileInputRef}
             type="file"
-            accept=".txt,text/plain"
+            accept=".txt,text/plain,.mp3,audio/mpeg,.wav,audio/wav,.ogg,audio/ogg,.m4a,audio/mp4"
             onChange={handleFileChange}
             className="hidden"
             disabled={disabled || uploadState.isUploading}
@@ -284,9 +285,15 @@ export const TranscriptUploader = memo(function TranscriptUploader({
             File Requirements
           </h4>
           <div className="text-xs text-muted-foreground space-y-1 pl-6">
-            <p>• Supported format: .txt files only</p>
+            <p>
+              • Supported formats: .txt files or audio files (.mp3, .wav, .ogg,
+              .m4a)
+            </p>
             <p>• Maximum file size: {FILE_CONSTRAINTS.MAX_SIZE_MB}MB</p>
-            <p>• Expected format: - HH:MM:SS section content</p>
+            <p>• Text files expected format: - HH:MM:SS section content</p>
+            <p>
+              • Audio files will be automatically transcribed with timestamps
+            </p>
           </div>
         </div>
 

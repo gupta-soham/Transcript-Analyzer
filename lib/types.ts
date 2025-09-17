@@ -112,6 +112,7 @@ export interface FileUploadState {
     isUploading: boolean;
     progress: number;
     error: string | null;
+    fileType: 'text' | 'audio' | null;
 }
 
 /**
@@ -123,6 +124,16 @@ export interface AnalysisState {
     stage: 'parsing' | 'analyzing' | 'formatting' | 'complete' | 'error';
     result: AnalysisResult | null;
     error: string | null;
+}
+
+/**
+ * Transcription result from audio processing
+ */
+export interface TranscriptionResult {
+    transcript: string; // Raw transcript text with timestamps
+    duration: string; // Total duration in HH:MM:SS format
+    wordCount: number;
+    processedAt: string;
 }
 
 /**
@@ -163,8 +174,10 @@ export enum ErrorCode {
  * File constraints
  */
 export const FILE_CONSTRAINTS = {
-    MAX_SIZE_MB: 10,
-    MAX_SIZE_BYTES: 10 * 1024 * 1024, // 10MB
-    ALLOWED_TYPES: ['text/plain'] as const,
-    ALLOWED_EXTENSIONS: ['.txt'] as const,
+    MAX_SIZE_MB: 20, // Increased for audio files
+    MAX_SIZE_BYTES: 20 * 1024 * 1024, // 20MB for audio files
+    ALLOWED_TYPES: ['text/plain', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4'] as const,
+    ALLOWED_EXTENSIONS: ['.txt', '.mp3', '.wav', '.ogg', '.m4a'] as const,
+    TEXT_EXTENSIONS: ['.txt'] as const,
+    AUDIO_EXTENSIONS: ['.mp3', '.wav', '.ogg', '.m4a'] as const,
 } as const;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TranscriptParser } from '@/lib/transcript-parser';
 import { GeminiService } from '@/lib/gemini-service';
-import { ErrorCode, FILE_CONSTRAINTS, ApiResponse, ApiErrorResponse } from '@/lib/types';
+import { ErrorCode, FILE_CONSTRAINTS, ApiResponse, ApiErrorResponse, TranscriptionResult, TranscriptEntry } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
     try {
@@ -33,46 +33,94 @@ export async function POST(request: NextRequest) {
         }
 
         // Validate file type
-        if (!FILE_CONSTRAINTS.ALLOWED_TYPES.includes(file.type as 'text/plain') &&
-            !FILE_CONSTRAINTS.ALLOWED_EXTENSIONS.some(ext => file.name.endsWith(ext))) {
+        const isTextFile = FILE_CONSTRAINTS.TEXT_EXTENSIONS.some(ext => file.name.toLowerCase().endsWith(ext));
+        const isAudioFile = FILE_CONSTRAINTS.AUDIO_EXTENSIONS.some(ext => file.name.toLowerCase().endsWith(ext));
+
+        if (!isTextFile && !isAudioFile) {
             return NextResponse.json({
                 success: false,
                 error: {
                     code: ErrorCode.INVALID_FILE_FORMAT,
-                    message: 'Only .txt files are supported',
+                    message: 'Only .txt files or audio files (.mp3, .wav, .ogg, .m4a) are supported',
                 },
                 timestamp: new Date().toISOString(),
             } as ApiErrorResponse, { status: 400 });
         }
 
-        // Read file content
-        const fileContent = await file.text();
+        // Handle audio files - transcribe first
+        let transcript: TranscriptEntry[] = [];
+        let transcriptionResult: TranscriptionResult | null = null;
 
-        if (!fileContent.trim()) {
-            return NextResponse.json({
-                success: false,
-                error: {
-                    code: ErrorCode.PARSING_ERROR,
-                    message: 'File is empty',
-                },
-                timestamp: new Date().toISOString(),
-            } as ApiErrorResponse, { status: 400 });
-        }
+        if (isAudioFile) {
+            // Transcribe audio file
+            let geminiService;
+            try {
+                geminiService = GeminiService.fromEnvironment();
+            } catch {
+                return NextResponse.json({
+                    success: false,
+                    error: {
+                        code: ErrorCode.API_KEY_MISSING,
+                        message: 'Gemini API key not configured',
+                    },
+                    timestamp: new Date().toISOString(),
+                } as ApiErrorResponse, { status: 500 });
+            }
 
-        // Parse transcript
-        let transcript;
+            try {
+                transcriptionResult = await geminiService.transcribeAudio(file);
+                // Parse the transcribed text into transcript entries
+                transcript = TranscriptParser.parseTranscriptFromText(transcriptionResult.transcript);
+            } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : 'Transcription failed';
+                let errorCode = ErrorCode.API_REQUEST_FAILED;
 
-        try {
-            transcript = TranscriptParser.parseTranscript(fileContent);
-        } catch (error: unknown) {
-            return NextResponse.json({
-                success: false,
-                error: {
-                    code: ErrorCode.PARSING_ERROR,
-                    message: error instanceof Error ? error.message : 'Failed to parse transcript',
-                },
-                timestamp: new Date().toISOString(),
-            } as ApiErrorResponse, { status: 400 });
+                if (errorMessage.includes(ErrorCode.RATE_LIMIT_EXCEEDED)) {
+                    errorCode = ErrorCode.RATE_LIMIT_EXCEEDED;
+                } else if (errorMessage.includes(ErrorCode.API_KEY_MISSING)) {
+                    errorCode = ErrorCode.API_KEY_MISSING;
+                } else if (errorMessage.includes(ErrorCode.NETWORK_ERROR)) {
+                    errorCode = ErrorCode.NETWORK_ERROR;
+                }
+
+                return NextResponse.json({
+                    success: false,
+                    error: {
+                        code: errorCode,
+                        message: errorMessage.replace(/^[A-Z_]+:\s*/, ''),
+                    },
+                    timestamp: new Date().toISOString(),
+                } as ApiErrorResponse, { status: 500 });
+            }
+        } else {
+            // Handle text files - existing logic
+            // Read file content
+            const fileContent = await file.text();
+
+            if (!fileContent.trim()) {
+                return NextResponse.json({
+                    success: false,
+                    error: {
+                        code: ErrorCode.PARSING_ERROR,
+                        message: 'File is empty',
+                    },
+                    timestamp: new Date().toISOString(),
+                } as ApiErrorResponse, { status: 400 });
+            }
+
+            // Parse transcript
+            try {
+                transcript = TranscriptParser.parseTranscript(fileContent);
+            } catch (error: unknown) {
+                return NextResponse.json({
+                    success: false,
+                    error: {
+                        code: ErrorCode.PARSING_ERROR,
+                        message: error instanceof Error ? error.message : 'Failed to parse transcript',
+                    },
+                    timestamp: new Date().toISOString(),
+                } as ApiErrorResponse, { status: 400 });
+            }
         }
 
         // Analyze with Gemini API
@@ -116,12 +164,22 @@ export async function POST(request: NextRequest) {
             } as ApiErrorResponse, { status: 500 });
         }
 
-        // Return successful response
+        // Return successful response with transcription info if applicable
+        const responseData = {
+            ...analysisResult,
+            transcription: transcriptionResult ? {
+                originalFile: file.name,
+                transcript: transcriptionResult.transcript,
+                duration: transcriptionResult.duration,
+                wordCount: transcriptionResult.wordCount,
+            } : null,
+        };
+
         return NextResponse.json({
             success: true,
-            data: analysisResult,
+            data: responseData,
             timestamp: new Date().toISOString(),
-        } as ApiResponse<typeof analysisResult>, { status: 200 });
+        } as ApiResponse<typeof responseData>, { status: 200 });
 
     } catch (error: unknown) {
         console.error('Unexpected error in analyze-transcript API:', error);

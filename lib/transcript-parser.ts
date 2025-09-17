@@ -266,12 +266,256 @@ export class TranscriptParser {
     }
 
     /**
-     * Gets unique section names from transcript entries
-     * @param entries - Array of TranscriptEntry objects
-     * @returns Array of unique section names
+     * Parses a transcript string from Gemini transcription output
+     * Expected format: [HH:MM:SS] Speaker: Content
+     * @param content - The raw transcript content from Gemini
+     * @returns Array of TranscriptEntry objects
+     * @throws TranscriptParseError if parsing fails
      */
-    static getUniqueSections(entries: TranscriptEntry[]): string[] {
-        const sections = new Set(entries.map(entry => entry.section));
-        return Array.from(sections).sort();
+    static parseTranscriptFromText(content: string): TranscriptEntry[] {
+        if (!content || typeof content !== 'string') {
+            throw new TranscriptParseError(
+                'Invalid input: content must be a non-empty string',
+                ErrorCode.INVALID_FILE_FORMAT
+            );
+        }
+
+        // console.log('DEBUG: Raw Gemini output:', content.substring(0, 500)); // Debug first 500 chars
+
+        const lines = content.trim().split('\n');
+        const entries: TranscriptEntry[] = [];
+        const errors: string[] = [];
+
+        // console.log(`DEBUG: Total lines: ${lines.length}`);
+        // console.log('DEBUG: First 10 lines:', lines.slice(0, 10));
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            const lineNumber = i + 1;
+
+            // Skip empty lines
+            if (!line) {
+                continue;
+            }
+
+            try {
+                const entry = this.parseGeminiLine(line, lineNumber);
+                if (entry) {
+                    entries.push(entry);
+                }
+            } catch (error) {
+                if (error instanceof TranscriptParseError) {
+                    errors.push(`Line ${lineNumber}: ${error.message}`);
+                } else {
+                    errors.push(`Line ${lineNumber}: Unexpected error during parsing`);
+                }
+            }
+        }
+
+        // If we have any parsing errors, try fallback parsing
+        if (errors.length > 0 && errors.length < lines.length * 0.8) { // Less than 80% errors
+            // console.log('DEBUG: Trying fallback parsing for partial success');
+            // Try to parse what we can and create entries for the rest
+            const fallbackEntries = this.parseTranscriptFallback(content);
+            if (fallbackEntries.length > 0) {
+                // console.log(`DEBUG: Fallback parsing successful, created ${fallbackEntries.length} entries`);
+                return [...entries, ...fallbackEntries];
+            }
+        }
+
+        // If we have any parsing errors, throw an error with detailed information
+        if (errors.length > 0) {
+            // console.log('DEBUG: Parsing errors:', errors.slice(0, 5)); // Debug first 5 errors
+            throw new TranscriptParseError(
+                `Failed to parse transcript. Errors found:\n${errors.join('\n')}`,
+                ErrorCode.INVALID_FILE_FORMAT
+            );
+        }
+
+        // If we have no valid entries, throw an error
+        if (entries.length === 0) {
+            throw new TranscriptParseError(
+                'No valid transcript entries found. Expected format: [HH:MM:SS] Speaker: Content',
+                ErrorCode.INVALID_FILE_FORMAT
+            );
+        }
+
+        return entries;
+    }
+
+    /**
+     * Parses a single line from Gemini transcription output
+     * Handles multiple possible formats that Gemini might return
+     * @param line - The line to parse
+     * @param lineNumber - The line number for error reporting
+     * @returns TranscriptEntry object or null if line should be skipped
+     * @throws TranscriptParseError if line format is invalid
+     */
+    private static parseGeminiLine(line: string, lineNumber: number): TranscriptEntry | null {
+        // console.log(`DEBUG: Parsing line ${lineNumber}: "${line}"`);
+
+        // Skip lines that are clearly not transcript content
+        if (line.length < 5 || /^\d+\.$/.test(line) || line.toLowerCase().includes('transcript')) {
+            // console.log(`DEBUG: Skipping line ${lineNumber} - appears to be header/metadata`);
+            return null;
+        }
+
+        // Pattern 1: [HH:MM:SS] Speaker: Content
+        const bracketPattern = /^\[(\d{1,2}:\d{2}:\d{2})\]\s*([^:]+):\s*(.+)$/;
+        let match = line.match(bracketPattern);
+        if (match) {
+            const [, timestamp, speaker, content] = match;
+            // console.log(`DEBUG: Matched bracket pattern for line ${lineNumber}`);
+            return this.createTranscriptEntry(timestamp, speaker, content, lineNumber);
+        }
+
+        // Pattern 2: HH:MM:SS Speaker: Content (no brackets)
+        const noBracketPattern = /^(\d{1,2}:\d{2}:\d{2})\s+([^:]+):\s*(.+)$/;
+        match = line.match(noBracketPattern);
+        if (match) {
+            const [, timestamp, speaker, content] = match;
+            // console.log(`DEBUG: Matched no-bracket pattern for line ${lineNumber}`);
+            return this.createTranscriptEntry(timestamp, speaker, content, lineNumber);
+        }
+
+        // Pattern 3: Speaker: [HH:MM:SS] Content
+        const speakerFirstPattern = /^([^:]+):\s*\[(\d{1,2}:\d{2}:\d{2})\]\s*(.+)$/;
+        match = line.match(speakerFirstPattern);
+        if (match) {
+            const [, speaker, timestamp, content] = match;
+            // console.log(`DEBUG: Matched speaker-first pattern for line ${lineNumber}`);
+            return this.createTranscriptEntry(timestamp, speaker, content, lineNumber);
+        }
+
+        // Pattern 4: HH:MM:SS - Speaker: Content
+        const dashPattern = /^(\d{1,2}:\d{2}:\d{2})\s*-\s*([^:]+):\s*(.+)$/;
+        match = line.match(dashPattern);
+        if (match) {
+            const [, timestamp, speaker, content] = match;
+            // console.log(`DEBUG: Matched dash pattern for line ${lineNumber}`);
+            return this.createTranscriptEntry(timestamp, speaker, content, lineNumber);
+        }
+
+        // Pattern 5: Just content with timestamp somewhere (fallback)
+        const timestampInContent = line.match(/(\d{1,2}:\d{2}:\d{2})/);
+        if (timestampInContent) {
+            const timestamp = timestampInContent[1];
+            // Extract content after timestamp
+            const contentAfterTimestamp = line.substring(line.indexOf(timestamp) + timestamp.length).trim();
+            if (contentAfterTimestamp.length > 10) { // Minimum content length
+                // console.log(`DEBUG: Matched fallback pattern for line ${lineNumber}`);
+                return this.createTranscriptEntry(timestamp, 'unknown_speaker', contentAfterTimestamp, lineNumber);
+            }
+        }
+
+        // Pattern 6: Plain text without timestamps (use sequential timestamps)
+        if (line.length > 20 && !line.includes(':') && /^[A-Z]/.test(line)) {
+            // This might be plain text content, assign a sequential timestamp
+            const sequentialTimestamp = this.generateSequentialTimestamp(lineNumber - 1);
+            // console.log(`DEBUG: Matched plain text pattern for line ${lineNumber}`);
+            return this.createTranscriptEntry(sequentialTimestamp, 'speaker', line, lineNumber);
+        }
+
+        // console.log(`DEBUG: No pattern matched for line ${lineNumber}`);
+        throw new TranscriptParseError(
+            `Invalid line format. Line content: "${line}". Supported formats: [HH:MM:SS] Speaker: Content, HH:MM:SS Speaker: Content, Speaker: [HH:MM:SS] Content, HH:MM:SS - Speaker: Content`,
+            ErrorCode.INVALID_FILE_FORMAT,
+            lineNumber
+        );
+    }
+
+    /**
+     * Fallback parser for when Gemini returns unstructured text
+     * Creates sequential timestamps for plain text content
+     * @param content - The raw transcript content
+     * @returns Array of TranscriptEntry objects
+     */
+    private static parseTranscriptFallback(content: string): TranscriptEntry[] {
+        const lines = content.trim().split('\n');
+        const entries: TranscriptEntry[] = [];
+        let currentTimestamp = 0;
+        const secondsPerLine = 8; // Assume 8 seconds per line for fallback
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+
+            // Skip empty lines or very short lines
+            if (!line || line.length < 5) {
+                continue;
+            }
+
+            // Skip lines that look like headers or metadata
+            if (line.toLowerCase().includes('transcript') ||
+                line.toLowerCase().includes('generated') ||
+                /^\d+\.$/.test(line)) {
+                continue;
+            }
+
+            const timestamp = this.secondsToTimestamp(currentTimestamp);
+            entries.push({
+                timestamp: timestamp,
+                section: 'transcript',
+                content: line
+            });
+
+            currentTimestamp += secondsPerLine;
+        }
+
+        return entries;
+    }
+
+    /**
+     * Generates a sequential timestamp based on line number
+     * @param lineIndex - The line index (0-based)
+     * @returns Timestamp string in HH:MM:SS format
+     */
+    private static generateSequentialTimestamp(lineIndex: number): string {
+        // Assume ~10 seconds per line for plain text without timestamps
+        const totalSeconds = lineIndex * 10;
+        return this.secondsToTimestamp(totalSeconds);
+    }
+
+    /**
+     * Creates a TranscriptEntry from parsed components
+     * @param timestamp - The timestamp string
+     * @param speaker - The speaker identifier
+     * @param content - The content text
+     * @param lineNumber - Line number for error reporting
+     * @returns TranscriptEntry object
+     * @throws TranscriptParseError if validation fails
+     */
+    private static createTranscriptEntry(timestamp: string, speaker: string, content: string, lineNumber: number): TranscriptEntry {
+        // Validate timestamp format
+        if (!this.isValidTimestamp(timestamp)) {
+            throw new TranscriptParseError(
+                `Invalid timestamp format: ${timestamp}. Expected HH:MM:SS`,
+                ErrorCode.INVALID_FILE_FORMAT,
+                lineNumber
+            );
+        }
+
+        // Validate speaker (should not be empty)
+        if (!speaker || speaker.trim().length === 0) {
+            throw new TranscriptParseError(
+                'Speaker cannot be empty',
+                ErrorCode.INVALID_FILE_FORMAT,
+                lineNumber
+            );
+        }
+
+        // Validate content (should not be empty)
+        if (!content || content.trim().length < this.MIN_CONTENT_LENGTH) {
+            throw new TranscriptParseError(
+                'Content cannot be empty',
+                ErrorCode.INVALID_FILE_FORMAT,
+                lineNumber
+            );
+        }
+
+        return {
+            timestamp: timestamp.trim(),
+            section: speaker.trim().toLowerCase().replace(/\s+/g, '_'), // Convert speaker to section format
+            content: content.trim()
+        };
     }
 }
