@@ -7,6 +7,7 @@ A Next.js web application that processes timestamped transcript files using Goog
 - 📁 **File Upload**: Drag-and-drop support for transcript files (TXT, MP3, WAV, OGG, M4A)
 - 🤖 **AI-Powered Analysis**: Real-time transcript analysis using Google Gemini AI
 - 📊 **Structured Output**: Organized results with summaries, highlights, lowlights, and entity extraction
+- ⏱️ **Visual Timeline**: Interactive transcript timeline with clickable timestamps and analysis overlays
 - 🎨 **Modern UI**: Built with shadcn/ui components and Tailwind CSS
 - ✨ **Smooth Animations**: Hardware-accelerated animations using Motion.dev
 - 🎯 **Theme-Aware Design**: Automatic dark/light mode support with theme-aware logo
@@ -14,6 +15,8 @@ A Next.js web application that processes timestamped transcript files using Goog
 - ⚡ **Fast Processing**: Optimized for performance with progress indicators
 - 🧪 **Comprehensive Testing**: Unit and integration tests included
 - 📱 **Responsive Design**: Optimized for desktop and mobile devices
+- 🎤 **Speaker Normalization**: Automatic speaker label standardization (Interviewer/Candidate)
+- 🎭 **Basic Diarization**: Intelligent speaker segmentation and merging for cleaner transcripts
 
 ## Tech Stack
 
@@ -86,6 +89,7 @@ A Next.js web application that processes timestamped transcript files using Goog
 3. Or click "Try Sample" to use the included sample transcript
 4. View the analysis results in the organized tabs:
    - **Summary**: Overall transcript summary
+   - **Timeline**: Visual transcript timeline with clickable timestamps and analysis overlays
    - **Highlights**: Key positive points with smooth expand/collapse animations
    - **Lowlights**: Areas for improvement with animated interactions
    - **Named Entities**: Identified speakers and organizations with collapsible details
@@ -215,7 +219,7 @@ npm run type-check
 
 ### Project Structure
 
-```
+```bash
 ├── app/                    # Next.js app directory
 │   ├── api/               # API routes
 │   │   └── analyze-transcript/
@@ -372,6 +376,32 @@ We welcome contributions! Please follow these steps:
 
 ## Recent Updates
 
+### v2.3.0 - Interactive Timeline Visualization
+
+- ⏱️ **Visual Timeline**: Interactive transcript timeline showing all entries with speaker identification
+- 🎯 **Clickable Timestamps**: Click on highlight, lowlight, or entity badges to jump to related analysis tabs
+- 📊 **Analysis Overlays**: Timeline entries show related highlights, lowlights, and entities inline
+- 🎨 **Color-Coded Speakers**: Visual distinction between Interviewer (blue) and Candidate (green) speakers
+- 🔗 **Cross-Navigation**: Seamless navigation between timeline and detailed analysis views
+- 📱 **Responsive Timeline**: Optimized timeline display for both desktop and mobile devices
+
+### v2.2.0 - Speaker Normalization & Diarization
+
+- 🎤 **Speaker Normalization**: Automatic standardization of speaker labels (Interviewer/Candidate)
+- 🎭 **Basic Diarization**: Intelligent speaker segmentation and merging for cleaner transcripts
+- 🔄 **Enhanced Analysis**: Improved AI analysis with consistent speaker identification
+- 📝 **Normalized Transcripts**: Both text and audio transcripts now use standardized speaker labels
+- ⚡ **Post-Processing Pipeline**: Automatic speaker label mapping and segment consolidation
+
+### v2.1.0 - Vercel Blob Integration & Large File Support
+
+- 🔧 **Vercel Blob Storage**: Implemented Vercel Blob for handling large file uploads (up to 20MB)
+- 🛠️ **Fixed Payload Limits**: Resolved "Request Entity Too Large" error by bypassing Vercel's 5MB serverless function limit
+- 📁 **Two-Step Upload Process**: Files are now uploaded to Vercel Blob first, then processed by the API
+- ⚡ **Improved Performance**: Better handling of large audio files with progress tracking
+- 🔒 **Automatic Configuration**: Vercel Blob is automatically configured when deploying to Vercel
+- 📊 **Enhanced Error Handling**: Better error messages and troubleshooting for deployment issues
+
 ### v2.0.0 - Enhanced UI & Animations
 
 - ✨ **Motion.dev Integration**: Hardware-accelerated animations for all collapsible cards
@@ -384,6 +414,8 @@ We welcome contributions! Please follow these steps:
 
 ### Key Improvements
 
+- **Timeline Visualization**: Interactive timeline with clickable timestamps and analysis overlays for enhanced navigation
+- **Speaker Processing**: Automatic normalization and diarization for consistent speaker identification
 - **Animations**: All expand/collapse interactions now use smooth, hardware-accelerated animations
 - **Logo**: Reusable component with theme awareness and responsive sizing
 - **Audio Processing**: Automatic transcription and timestamping for audio files

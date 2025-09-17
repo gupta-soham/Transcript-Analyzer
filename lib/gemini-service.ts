@@ -35,7 +35,11 @@ export class GeminiService {
         }
 
         try {
-            const prompt = this.buildAnalysisPrompt(transcript);
+            // Apply speaker normalization and basic diarization before analysis
+            const normalizedTranscript = this.normalizeTranscriptSpeakers(transcript);
+            const diarizedTranscript = this.performBasicDiarization(normalizedTranscript);
+
+            const prompt = this.buildAnalysisPrompt(diarizedTranscript);
 
 
 
@@ -182,12 +186,15 @@ Please return ONLY the transcript lines in the exact format shown above.`;
                 throw new Error('Empty response from Gemini API');
             }
 
+            // Apply speaker normalization to the raw transcript text
+            const normalizedTranscriptText = this.normalizeTranscriptTextSpeakers(transcriptText);
+
             // Calculate word count and estimate duration
-            const wordCount = this.calculateWordCountFromText(transcriptText);
+            const wordCount = this.calculateWordCountFromText(normalizedTranscriptText);
             const estimatedDuration = this.estimateDurationFromWordCount(wordCount);
 
             const transcriptionResult: TranscriptionResult = {
-                transcript: transcriptText,
+                transcript: normalizedTranscriptText,
                 duration: estimatedDuration,
                 wordCount: wordCount,
                 processedAt: new Date().toISOString(),
@@ -393,5 +400,148 @@ Please return ONLY the JSON response with no additional text or formatting.
         }
 
         return new GeminiService(apiKey);
+    }
+
+    /**
+     * Normalizes speaker labels in the transcript for consistent analysis
+     * Maps common variations to standardized labels (Interviewer/Candidate)
+     * @param transcript Array of transcript entries
+     * @returns Normalized transcript with standardized speaker labels
+     */
+    private normalizeTranscriptSpeakers(transcript: TranscriptEntry[]): TranscriptEntry[] {
+        // Create mapping for common speaker label variations
+        const speakerAliases: { [key: string]: string } = {
+            // Interviewer variations
+            'interviewer': 'Interviewer',
+            'host': 'Interviewer',
+            'moderator': 'Interviewer',
+            'panelist': 'Interviewer',
+            'questioner': 'Interviewer',
+            'Interviewer': 'Interviewer',
+
+            // Candidate variations
+            'candidate': 'Candidate',
+            'interviewee': 'Candidate',
+            'applicant': 'Candidate',
+            'person': 'Candidate',
+            'speaker': 'Candidate',
+            'respondent': 'Candidate',
+            'Candidate': 'Candidate',
+
+            // Generic speaker numbers - assume Speaker 1 is Interviewer, Speaker 2 is Candidate
+            'speaker 1': 'Interviewer',
+            'speaker1': 'Interviewer',
+            'speaker 2': 'Candidate',
+            'speaker2': 'Candidate',
+            'speaker 3': 'Candidate',
+            'speaker3': 'Candidate',
+        };
+
+        return transcript.map(entry => {
+            // Normalize the speaker label to lowercase for matching
+            const normalizedKey = entry.section.toLowerCase().trim();
+
+            // Use the mapping if it exists, otherwise keep the original
+            const standardizedSpeaker = speakerAliases[normalizedKey] || entry.section;
+
+            return {
+                ...entry,
+                section: standardizedSpeaker,
+            };
+        });
+    }
+
+    /**
+     * Performs basic speaker diarization using heuristic rules
+     * Groups consecutive entries by speaker and merges short segments
+     * @param transcript Array of transcript entries
+     * @returns Transcript with improved speaker consistency
+     */
+    private performBasicDiarization(transcript: TranscriptEntry[]): TranscriptEntry[] {
+        if (transcript.length === 0) return transcript;
+
+        const result: TranscriptEntry[] = [];
+        let currentSpeaker = transcript[0].section;
+        let currentContent = transcript[0].content;
+        let currentTimestamp = transcript[0].timestamp;
+
+        for (let i = 1; i < transcript.length; i++) {
+            const entry = transcript[i];
+
+            // If same speaker and content is short, merge with previous
+            if (entry.section === currentSpeaker && entry.content.length < 100) {
+                currentContent += ' ' + entry.content;
+            } else {
+                // Save the current segment
+                result.push({
+                    timestamp: currentTimestamp,
+                    section: currentSpeaker,
+                    content: currentContent.trim(),
+                });
+
+                // Start new segment
+                currentSpeaker = entry.section;
+                currentContent = entry.content;
+                currentTimestamp = entry.timestamp;
+            }
+        }
+
+        // Add the last segment
+        result.push({
+            timestamp: currentTimestamp,
+            section: currentSpeaker,
+            content: currentContent.trim(),
+        });
+
+        return result;
+    }
+
+    /**
+     * Normalizes speaker labels in raw transcript text
+     * @param transcriptText Raw transcript text with [HH:MM:SS] Speaker: format
+     * @returns Normalized transcript text with standardized speaker labels
+     */
+    private normalizeTranscriptTextSpeakers(transcriptText: string): string {
+        // Create mapping for common speaker label variations
+        const speakerAliases: { [key: string]: string } = {
+            // Interviewer variations
+            'interviewer': 'Interviewer',
+            'host': 'Interviewer',
+            'moderator': 'Interviewer',
+            'panelist': 'Interviewer',
+            'questioner': 'Interviewer',
+
+            // Candidate variations
+            'candidate': 'Candidate',
+            'interviewee': 'Candidate',
+            'applicant': 'Candidate',
+            'person': 'Candidate',
+            'speaker': 'Candidate',
+            'respondent': 'Candidate',
+
+            // Generic speaker numbers - assume Speaker 1 is Interviewer, Speaker 2 is Candidate
+            'speaker 1': 'Interviewer',
+            'speaker1': 'Interviewer',
+            'speaker 2': 'Candidate',
+            'speaker2': 'Candidate',
+            'speaker 3': 'Candidate',
+            'speaker3': 'Candidate',
+        };
+
+        // Split into lines and process each line
+        const lines = transcriptText.split('\n');
+        const normalizedLines = lines.map(line => {
+            // Match the format: [HH:MM:SS] Speaker: Content
+            const match = line.match(/^\[(\d{2}:\d{2}:\d{2})\]\s*([^:]+):\s*(.+)$/);
+            if (match) {
+                const [, timestamp, speaker, content] = match;
+                const normalizedKey = speaker.toLowerCase().trim();
+                const standardizedSpeaker = speakerAliases[normalizedKey] || speaker;
+                return `[${timestamp}] ${standardizedSpeaker}: ${content}`;
+            }
+            return line; // Return unchanged if format doesn't match
+        });
+
+        return normalizedLines.join('\n');
     }
 }

@@ -80,9 +80,9 @@ export function EntityEditor({ entity, onUpdate, trigger }: EntityEditorProps) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto break-words">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 break-words">
             <Tag className="h-5 w-5" />
             Edit Entity: {entity.name}
           </DialogTitle>
@@ -94,7 +94,7 @@ export function EntityEditor({ entity, onUpdate, trigger }: EntityEditorProps) {
 
         <div className="space-y-6">
           {/* Basic Information */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="entity-name">Name</Label>
               <Input
@@ -104,6 +104,7 @@ export function EntityEditor({ entity, onUpdate, trigger }: EntityEditorProps) {
                   setEditedEntity((prev) => ({ ...prev, name: e.target.value }))
                 }
                 placeholder="Entity name"
+                className="break-words"
               />
             </div>
             <div className="space-y-2">
@@ -180,7 +181,7 @@ export function EntityEditor({ entity, onUpdate, trigger }: EntityEditorProps) {
                 onChange={(e) => setNewTag(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Add a tag..."
-                className="flex-1"
+                className="flex-1 break-words"
               />
               <Button onClick={addTag} size="sm" variant="outline">
                 <Plus className="h-4 w-4" />
@@ -199,6 +200,7 @@ export function EntityEditor({ entity, onUpdate, trigger }: EntityEditorProps) {
               }
               placeholder="Add notes about this entity..."
               rows={3}
+              className="break-words"
             />
           </div>
 
@@ -215,7 +217,7 @@ export function EntityEditor({ entity, onUpdate, trigger }: EntityEditorProps) {
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="text-xs text-muted-foreground break-words">
                     {mention.content}
                   </p>
                 </div>

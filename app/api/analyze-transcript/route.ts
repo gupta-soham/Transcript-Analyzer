@@ -167,6 +167,7 @@ export async function POST(request: NextRequest) {
         // Return successful response with transcription info if applicable
         const responseData = {
             ...analysisResult,
+            transcriptEntries: transcript,
             transcription: transcriptionResult ? {
                 originalFile: file.name,
                 transcript: transcriptionResult.transcript,

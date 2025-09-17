@@ -12,7 +12,9 @@ import {
   ApiResult,
   FILE_CONSTRAINTS,
 } from "@/lib/types";
+import { TranscriptEntry } from "@/lib/types";
 import { createSampleTranscriptFile } from "@/lib/sample-data";
+import { TranscriptParser } from "@/lib/transcript-parser";
 import { ModeToggle } from "@/components/mode-toggle";
 import { toast } from "sonner";
 import {
@@ -32,6 +34,10 @@ export default function Home() {
     fileType: null,
   });
 
+  const [transcriptEntries, setTranscriptEntries] = useState<TranscriptEntry[]>(
+    []
+  );
+
   const [analysisState, setAnalysisState] = useState<AnalysisState>({
     isAnalyzing: false,
     progress: 0,
@@ -50,6 +56,19 @@ export default function Home() {
         result: null,
         error: null,
       });
+
+      // Parse transcript entries for timeline
+      let parsedEntries: TranscriptEntry[] = [];
+      if (
+        FILE_CONSTRAINTS.TEXT_EXTENSIONS.some((ext) =>
+          file.name.toLowerCase().endsWith(ext)
+        )
+      ) {
+        // For text files, parse immediately
+        const content = await file.text();
+        parsedEntries = TranscriptParser.parseTranscript(content);
+        setTranscriptEntries(parsedEntries);
+      }
 
       // Smooth progress to parsing start
       setTimeout(() => {
@@ -112,6 +131,18 @@ export default function Home() {
         throw new Error(result.error.message);
       }
 
+      // Extract transcript entries from the API response
+      if (
+        result.data.transcriptEntries &&
+        result.data.transcriptEntries.length > 0
+      ) {
+        setTranscriptEntries(result.data.transcriptEntries);
+      } else if (!parsedEntries.length && result.data.metadata.wordCount > 0) {
+        // Fallback: create basic entries from analysis result for audio files
+        parsedEntries = createBasicTranscriptEntries(result.data);
+        setTranscriptEntries(parsedEntries);
+      }
+
       // Progress to near completion
       setTimeout(() => {
         setAnalysisState((prev) => ({ ...prev, progress: 95 }));
@@ -164,6 +195,37 @@ export default function Home() {
       });
     }
   }, []);
+
+  // Helper function to create basic transcript entries from analysis result
+  const createBasicTranscriptEntries = (
+    result: AnalysisResult
+  ): TranscriptEntry[] => {
+    const entries: TranscriptEntry[] = [];
+
+    // Create entries from highlights and lowlights
+    result.highlights.forEach((highlight, index) => {
+      if (highlight.timestamp) {
+        entries.push({
+          timestamp: highlight.timestamp,
+          section: "Interviewer", // Assume interviewer for highlights
+          content: highlight.content,
+        });
+      }
+    });
+
+    result.lowlights.forEach((lowlight, index) => {
+      if (lowlight.timestamp) {
+        entries.push({
+          timestamp: lowlight.timestamp,
+          section: "Candidate", // Assume candidate for lowlights
+          content: lowlight.content,
+        });
+      }
+    });
+
+    // Sort by timestamp
+    return entries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  };
 
   const handleFileSelect = useCallback(
     async (file: File) => {
@@ -314,6 +376,7 @@ export default function Home() {
                       result: updatedResult,
                     }));
                   }}
+                  transcriptEntries={transcriptEntries}
                 />
 
                 {/* New Analysis Button */}

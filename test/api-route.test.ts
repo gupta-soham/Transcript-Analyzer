@@ -70,7 +70,7 @@ describe('/api/analyze-transcript', () => {
 
     it('should return 400 for file too large', async () => {
         const formData = new FormData();
-        const largeContent = 'x'.repeat(11 * 1024 * 1024); // 11MB
+        const largeContent = 'x'.repeat(25 * 1024 * 1024); // 25MB (larger than 20MB limit)
         const file = new File([largeContent], 'test.txt', { type: 'text/plain' });
         formData.append('file', file);
 

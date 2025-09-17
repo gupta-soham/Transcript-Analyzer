@@ -57,6 +57,7 @@ export interface AnalysisResult {
     highlights: HighlightItem[];
     lowlights: LowlightItem[];
     namedEntities: NamedEntity[];
+    transcriptEntries?: TranscriptEntry[]; // Parsed transcript entries for timeline display
     metadata: {
         totalDuration: string;
         wordCount: number;

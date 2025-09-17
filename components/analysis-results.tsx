@@ -19,6 +19,7 @@ import {
   HighlightItem,
   LowlightItem,
   NamedEntity,
+  TranscriptEntry,
 } from "@/lib/types";
 import {
   BarChart3,
@@ -42,12 +43,14 @@ interface AnalysisResultsProps {
   result: AnalysisResult | null;
   isLoading?: boolean;
   onResultUpdate?: (updatedResult: AnalysisResult) => void;
+  transcriptEntries?: TranscriptEntry[];
 }
 
 export const AnalysisResults = memo(function AnalysisResults({
   result,
   isLoading = false,
   onResultUpdate,
+  transcriptEntries = [],
 }: AnalysisResultsProps) {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
@@ -116,13 +119,20 @@ export const AnalysisResults = memo(function AnalysisResults({
 
         <CardContent>
           <Tabs defaultValue="summary" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto p-1 gap-1 sm:gap-0">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto p-1 gap-1 sm:gap-0">
               <TabsTrigger
                 value="summary"
                 className="text-xs sm:text-sm py-2 px-2 sm:px-4"
               >
                 <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 Summary
+              </TabsTrigger>
+              <TabsTrigger
+                value="timeline"
+                className="text-xs sm:text-sm py-2 px-2 sm:px-4"
+              >
+                <Clock className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Timeline ({transcriptEntries.length})
               </TabsTrigger>
               <TabsTrigger
                 value="highlights"
@@ -149,6 +159,15 @@ export const AnalysisResults = memo(function AnalysisResults({
 
             <TabsContent value="summary" className="mt-6">
               <SummarySection summary={result.summary} />
+            </TabsContent>
+
+            <TabsContent value="timeline" className="mt-6">
+              <TimelineSection
+                transcriptEntries={transcriptEntries}
+                highlights={result.highlights}
+                lowlights={result.lowlights}
+                entities={result.namedEntities}
+              />
             </TabsContent>
 
             <TabsContent value="highlights" className="mt-6">
@@ -302,13 +321,15 @@ function HighlightsSection({
                   transition={{
                     duration: 0.3,
                     ease: [0.4, 0.0, 0.2, 1],
-                    opacity: { duration: 0.2 }
+                    opacity: { duration: 0.2 },
                   }}
                   className="overflow-hidden"
                 >
                   <CardContent className="pt-0">
                     <Separator className="mb-4" />
-                    <p className="text-sm leading-relaxed">{highlight.content}</p>
+                    <p className="text-sm leading-relaxed">
+                      {highlight.content}
+                    </p>
                   </CardContent>
                 </motion.div>
               )}
@@ -388,13 +409,15 @@ function LowlightsSection({
                   transition={{
                     duration: 0.3,
                     ease: [0.4, 0.0, 0.2, 1],
-                    opacity: { duration: 0.2 }
+                    opacity: { duration: 0.2 },
                   }}
                   className="overflow-hidden"
                 >
                   <CardContent className="pt-0">
                     <Separator className="mb-4" />
-                    <p className="text-sm leading-relaxed">{lowlight.content}</p>
+                    <p className="text-sm leading-relaxed">
+                      {lowlight.content}
+                    </p>
                   </CardContent>
                 </motion.div>
               )}
@@ -403,6 +426,240 @@ function LowlightsSection({
         );
       })}
     </div>
+  );
+}
+
+function TimelineSection({
+  transcriptEntries,
+  highlights,
+  lowlights,
+  entities,
+}: {
+  transcriptEntries: TranscriptEntry[];
+  highlights: HighlightItem[];
+  lowlights: LowlightItem[];
+  entities: NamedEntity[];
+}) {
+  if (transcriptEntries.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-muted-foreground">
+          <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p>No timeline data available for this transcript.</p>
+          <p className="text-sm mt-2">
+            Timeline is available for text transcripts and processed audio
+            files.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Create a map of timestamps to analysis items for quick lookup
+  const timestampMap = new Map<
+    string,
+    {
+      highlights: HighlightItem[];
+      lowlights: LowlightItem[];
+      entities: NamedEntity[];
+    }
+  >();
+
+  // Populate the map with highlights
+  highlights.forEach((highlight) => {
+    if (highlight.timestamp) {
+      if (!timestampMap.has(highlight.timestamp)) {
+        timestampMap.set(highlight.timestamp, {
+          highlights: [],
+          lowlights: [],
+          entities: [],
+        });
+      }
+      timestampMap.get(highlight.timestamp)!.highlights.push(highlight);
+    }
+  });
+
+  // Populate the map with lowlights
+  lowlights.forEach((lowlight) => {
+    if (lowlight.timestamp) {
+      if (!timestampMap.has(lowlight.timestamp)) {
+        timestampMap.set(lowlight.timestamp, {
+          highlights: [],
+          lowlights: [],
+          entities: [],
+        });
+      }
+      timestampMap.get(lowlight.timestamp)!.lowlights.push(lowlight);
+    }
+  });
+
+  // Populate the map with entities
+  entities.forEach((entity) => {
+    entity.mentions.forEach((mention) => {
+      if (mention.timestamp) {
+        if (!timestampMap.has(mention.timestamp)) {
+          timestampMap.set(mention.timestamp, {
+            highlights: [],
+            lowlights: [],
+            entities: [],
+          });
+        }
+        timestampMap.get(mention.timestamp)!.entities.push(entity);
+      }
+    });
+  });
+
+  const scrollToTab = (tabValue: string) => {
+    // Find the tab trigger and click it
+    const tabTrigger = document.querySelector(
+      `[value="${tabValue}"]`
+    ) as HTMLElement;
+    if (tabTrigger) {
+      tabTrigger.click();
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Clock className="h-5 w-5" />
+          Transcript Timeline
+        </CardTitle>
+        <CardDescription>
+          Visual timeline of the transcript with clickable timestamps. Click on
+          timestamps to jump to related analysis items.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {/* Timeline visualization */}
+          <div className="relative">
+            {/* Timeline line */}
+            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-muted" />
+
+            {/* Timeline entries */}
+            <div className="space-y-6">
+              {transcriptEntries.map((entry, index) => {
+                const analysisItems = timestampMap.get(entry.timestamp);
+                const hasHighlights = analysisItems?.highlights.length ?? 0 > 0;
+                const hasLowlights = analysisItems?.lowlights.length ?? 0 > 0;
+                const hasEntities = analysisItems?.entities.length ?? 0 > 0;
+
+                return (
+                  <div key={index} className="relative flex gap-4">
+                    {/* Timeline dot */}
+                    <div
+                      className={`relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-medium ${
+                        entry.section === "Interviewer"
+                          ? "bg-blue-100 border-blue-300 text-blue-700"
+                          : "bg-green-100 border-green-300 text-green-700"
+                      }`}
+                    >
+                      {entry.section.toLocaleLowerCase() === "interviewer"
+                        ? "I"
+                        : "C"}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="outline" className="text-xs">
+                          {entry.timestamp}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {entry.section}
+                        </Badge>
+                        {hasHighlights !== 0 && (
+                          <Badge
+                            className="text-xs bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer"
+                            onClick={() => scrollToTab("highlights")}
+                          >
+                            <TrendingUp className="h-3 w-3 mr-1" />
+                            Highlight
+                          </Badge>
+                        )}
+                        {hasLowlights !== 0 && (
+                          <Badge
+                            className="text-xs bg-red-100 text-red-800 hover:bg-red-200 cursor-pointer"
+                            onClick={() => scrollToTab("lowlights")}
+                          >
+                            <TrendingDown className="h-3 w-3 mr-1" />
+                            Lowlight
+                          </Badge>
+                        )}
+                        {hasEntities !== 0 && (
+                          <Badge
+                            className="text-xs bg-purple-100 text-purple-800 hover:bg-purple-200 cursor-pointer"
+                            onClick={() => scrollToTab("entities")}
+                          >
+                            <Users className="h-3 w-3 mr-1" />
+                            Entity
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="text-sm text-muted-foreground leading-relaxed">
+                        {entry.content}
+                      </div>
+
+                      {/* Show analysis items for this timestamp */}
+                      {analysisItems && (
+                        <div className="mt-3 space-y-2">
+                          {analysisItems.highlights.map((highlight, hIndex) => (
+                            <div
+                              key={`h-${hIndex}`}
+                              className="p-2 bg-green-50 border border-green-200 rounded text-xs"
+                            >
+                              <div className="font-medium text-green-800 mb-1">
+                                Highlight:
+                              </div>
+                              <div className="text-green-700">
+                                {highlight.content}
+                              </div>
+                            </div>
+                          ))}
+                          {analysisItems.lowlights.map((lowlight, lIndex) => (
+                            <div
+                              key={`l-${lIndex}`}
+                              className="p-2 bg-red-50 border border-red-200 rounded text-xs"
+                            >
+                              <div className="font-medium text-red-800 mb-1">
+                                Lowlight:
+                              </div>
+                              <div className="text-red-700">
+                                {lowlight.content}
+                              </div>
+                            </div>
+                          ))}
+                          {analysisItems.entities.map((entity, eIndex) => (
+                            <div
+                              key={`e-${eIndex}`}
+                              className="p-2 bg-purple-50 border border-purple-200 rounded text-xs"
+                            >
+                              <div className="font-medium text-purple-800 mb-1">
+                                Entity: {entity.name}
+                              </div>
+                              <div className="text-purple-700">
+                                {
+                                  entity.mentions.find(
+                                    (m) => m.timestamp === entry.timestamp
+                                  )?.content
+                                }
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -543,7 +800,7 @@ function EntitiesSection({
                   transition={{
                     duration: 0.3,
                     ease: [0.4, 0.0, 0.2, 1],
-                    opacity: { duration: 0.2 }
+                    opacity: { duration: 0.2 },
                   }}
                   className="overflow-hidden"
                 >

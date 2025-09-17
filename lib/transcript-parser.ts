@@ -518,4 +518,19 @@ export class TranscriptParser {
             content: content.trim()
         };
     }
+
+    /**
+     * Gets unique section names from transcript entries, sorted alphabetically
+     * @param entries - Array of TranscriptEntry objects
+     * @returns Array of unique section names sorted alphabetically
+     */
+    static getUniqueSections(entries: TranscriptEntry[]): string[] {
+        const sections = new Set<string>();
+
+        for (const entry of entries) {
+            sections.add(entry.section);
+        }
+
+        return Array.from(sections).sort();
+    }
 }
